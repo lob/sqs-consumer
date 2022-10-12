@@ -1,5 +1,6 @@
 import { assert } from 'chai';
 import * as pEvent from 'p-event';
+import { Message } from '@aws-sdk/client-sqs'
 
 import * as sinon from 'sinon';
 import { Consumer } from '../src/index';
@@ -254,8 +255,8 @@ describe('Consumer', () => {
       const [err, message] = await pEvent(consumer, 'processing_error', { multiArgs: true });
       consumer.stop();
 
-      assert.equal(err.message, 'Unexpected message handler failure: Processing error');
-      assert.equal(message.MessageId, '123');
+      assert.equal((err as Error).message, 'Unexpected message handler failure: Processing error');
+      assert.equal((message as Message).MessageId, '123');
     });
 
     it('fires an `error` event when an `SQSError` occurs processing a message', async () => {
@@ -269,8 +270,8 @@ describe('Consumer', () => {
       const [err, message] = await pEvent(consumer, 'error', { multiArgs: true });
       consumer.stop();
 
-      assert.equal(err.message, 'SQS delete message failed: Processing error');
-      assert.equal(message.MessageId, '123');
+      assert.equal((err as Error).message, 'SQS delete message failed: Processing error');
+      assert.equal((message as Message).MessageId, '123');
     });
 
     it('waits before repolling when a credentials error occurs', async () => {
