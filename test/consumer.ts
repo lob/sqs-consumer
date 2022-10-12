@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 import * as pEvent from 'p-event';
-import { Message } from '@aws-sdk/client-sqs'
+import { Message } from '@aws-sdk/client-sqs';
 
 import * as sinon from 'sinon';
 import { Consumer } from '../src/index';
