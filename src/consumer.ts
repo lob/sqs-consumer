@@ -1,16 +1,35 @@
-import { AWSError } from 'aws-sdk';
-import * as SQS from 'aws-sdk/clients/sqs';
-import { PromiseResult } from 'aws-sdk/lib/request';
-import * as Debug from 'debug';
+import {
+  SQSClient,
+  SQSServiceException,
+  Message,
+
+  ReceiveMessageCommand,
+  ReceiveMessageCommandInput,
+  ReceiveMessageCommandOutput,
+
+  DeleteMessageCommand,
+  DeleteMessageCommandInput,
+  DeleteMessageCommandOutput,
+
+  ChangeMessageVisibilityCommand,
+  ChangeMessageVisibilityCommandOutput,
+
+  DeleteMessageBatchCommand,
+  DeleteMessageBatchCommandInput,
+  DeleteMessageBatchCommandOutput,
+
+  ChangeMessageVisibilityBatchCommand,
+  ChangeMessageVisibilityBatchCommandInput,
+  ChangeMessageVisibilityBatchCommandOutput
+} from '@aws-sdk/client-sqs';
+import Debug from 'debug';
 import { EventEmitter } from 'events';
 import { autoBind } from './bind';
 import { SQSError, TimeoutError } from './errors';
 
 const debug = Debug('sqs-consumer');
 
-type ReceieveMessageResponse = PromiseResult<SQS.Types.ReceiveMessageResult, AWSError>;
-type ReceiveMessageRequest = SQS.Types.ReceiveMessageRequest;
-export type SQSMessage = SQS.Types.Message;
+export type SQSMessage = Message;
 
 const requiredOptions = [
   'queueUrl',
@@ -25,8 +44,9 @@ interface TimeoutResponse {
 
 function createTimeout(duration: number): TimeoutResponse[] {
   let timeout;
-  const pending = new Promise((_, reject) => {
+  const pending = new Promise((resolve, reject) => {
     timeout = setTimeout((): void => {
+      debug('timed out!');
       reject(new TimeoutError());
     }, duration);
   });
@@ -57,20 +77,17 @@ function isConnectionError(err: Error): boolean {
   return false;
 }
 
-function toSQSError(err: AWSError, message: string): SQSError {
+function toSQSError(err: SQSServiceException, message: string): SQSError {
   const sqsError = new SQSError(message);
-  sqsError.code = err.code;
-  sqsError.statusCode = err.statusCode;
-  sqsError.region = err.region;
-  sqsError.retryable = err.retryable;
-  sqsError.hostname = err.hostname;
-  sqsError.time = err.time;
+  sqsError.code = err.name;
+  sqsError.statusCode = err.$response?.statusCode;
+  sqsError.hostname = err.$fault;
 
   return sqsError;
 }
 
-function hasMessages(response: ReceieveMessageResponse): boolean {
-  return response.Messages && response.Messages.length > 0;
+function hasMessages(response: ReceiveMessageCommandOutput): boolean {
+  return response.Messages?.length > 0;
 }
 
 export interface ConsumerOptions {
@@ -85,7 +102,7 @@ export interface ConsumerOptions {
   pollingWaitTimeMs?: number;
   terminateVisibilityTimeout?: boolean;
   heartbeatInterval?: number;
-  sqs?: SQS;
+  sqs?: SQSClient;
   region?: string;
   handleMessageTimeout?: number;
   shouldDeleteMessages?: boolean;
@@ -119,7 +136,7 @@ export class Consumer extends EventEmitter {
   private pollingWaitTimeMs: number;
   private terminateVisibilityTimeout: boolean;
   private heartbeatInterval: number;
-  private sqs: SQS;
+  private sqs: SQSClient;
   private shouldDeleteMessages: boolean;
 
   constructor(options: ConsumerOptions) {
@@ -141,7 +158,7 @@ export class Consumer extends EventEmitter {
     this.pollingWaitTimeMs = options.pollingWaitTimeMs ?? 0;
     this.shouldDeleteMessages = options.shouldDeleteMessages ?? true;
 
-    this.sqs = options.sqs || new SQS({
+    this.sqs = options.sqs || new SQSClient({
       region: options.region || process.env.AWS_REGION || 'eu-west-1'
     });
 
@@ -181,7 +198,7 @@ export class Consumer extends EventEmitter {
     this.stopped = true;
   }
 
-  private async handleSqsResponse(response: ReceieveMessageResponse): Promise<void> {
+  private async handleSqsResponse(response: ReceiveMessageCommandOutput): Promise<void> {
     debug('Received SQS response');
     debug(response);
 
@@ -224,32 +241,28 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async receiveMessage(params: ReceiveMessageRequest): Promise<ReceieveMessageResponse> {
+  private async receiveMessage(params: ReceiveMessageCommandInput): Promise<ReceiveMessageCommandOutput> {
     try {
-      return await this.sqs
-        .receiveMessage(params)
-        .promise();
+      return await this.sqs.send(new ReceiveMessageCommand(params));
     } catch (err) {
       throw toSQSError(err, `SQS receive message failed: ${err.message}`);
     }
   }
 
-  private async deleteMessage(message: SQSMessage): Promise<void> {
+  private async deleteMessage(message: SQSMessage): Promise<DeleteMessageCommandOutput> {
     if (!this.shouldDeleteMessages) {
       debug('Skipping message delete since shouldDeleteMessages is set to false');
       return;
     }
     debug('Deleting message %s', message.MessageId);
 
-    const deleteParams = {
+    const deleteParams: DeleteMessageCommandInput = {
       QueueUrl: this.queueUrl,
       ReceiptHandle: message.ReceiptHandle
     };
 
     try {
-      await this.sqs
-        .deleteMessage(deleteParams)
-        .promise();
+      return await this.sqs.send(new DeleteMessageCommand(deleteParams));
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
@@ -280,21 +293,22 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async changeVisibilityTimeout(message: SQSMessage, timeout: number): Promise<PromiseResult<any, AWSError>> {
+  private async changeVisibilityTimeout(message: SQSMessage, timeout: number): Promise<ChangeMessageVisibilityCommandOutput> {
     try {
-      return await this.sqs
-        .changeMessageVisibility({
-          QueueUrl: this.queueUrl,
-          ReceiptHandle: message.ReceiptHandle,
-          VisibilityTimeout: timeout
-        })
-        .promise();
+      debug('changing visibility', message, timeout);
+      return await this.sqs.send(new ChangeMessageVisibilityCommand({
+        QueueUrl: this.queueUrl,
+        ReceiptHandle: message.ReceiptHandle,
+        VisibilityTimeout: timeout
+      }));
     } catch (err) {
+      debug('error!!', message, timeout);
       this.emit('error', toSQSError(err, `Error changing visibility timeout: ${err.message}`), message);
     }
   }
 
   private emitError(err: Error, message: SQSMessage): void {
+    debug('emitting error!!');
     if (err.name === SQSError.name) {
       this.emit('error', err, message);
     } else if (err instanceof TimeoutError) {
@@ -311,7 +325,7 @@ export class Consumer extends EventEmitter {
     }
 
     debug('Polling for messages');
-    const receiveParams = {
+    const receiveParams: ReceiveMessageCommandInput = {
       QueueUrl: this.queueUrl,
       AttributeNames: this.attributeNames,
       MessageAttributeNames: this.messageAttributeNames,
@@ -346,7 +360,7 @@ export class Consumer extends EventEmitter {
     try {
       if (this.heartbeatInterval) {
         heartbeat = this.startHeartbeat(async () => {
-          return this.changeVisabilityTimeoutBatch(messages, this.visibilityTimeout);
+          return this.changeVisibilityTimeoutBatch(messages, this.visibilityTimeout);
         });
       }
       await this.executeBatchHandler(messages);
@@ -358,21 +372,21 @@ export class Consumer extends EventEmitter {
       this.emit('error', err, messages);
 
       if (this.terminateVisibilityTimeout) {
-        await this.changeVisabilityTimeoutBatch(messages, 0);
+        await this.changeVisibilityTimeoutBatch(messages, 0);
       }
     } finally {
       clearInterval(heartbeat);
     }
   }
 
-  private async deleteMessageBatch(messages: SQSMessage[]): Promise<void> {
+  private async deleteMessageBatch(messages: SQSMessage[]): Promise<DeleteMessageBatchCommandOutput> {
     if (!this.shouldDeleteMessages) {
       debug('Skipping message delete since shouldDeleteMessages is set to false');
       return;
     }
     debug('Deleting messages %s', messages.map((msg) => msg.MessageId).join(' ,'));
 
-    const deleteParams = {
+    const deleteParam: DeleteMessageBatchCommandInput = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message) => ({
         Id: message.MessageId,
@@ -381,9 +395,7 @@ export class Consumer extends EventEmitter {
     };
 
     try {
-      await this.sqs
-        .deleteMessageBatch(deleteParams)
-        .promise();
+      return await this.sqs.send(new DeleteMessageBatchCommand(deleteParam));
     } catch (err) {
       throw toSQSError(err, `SQS delete message failed: ${err.message}`);
     }
@@ -398,8 +410,8 @@ export class Consumer extends EventEmitter {
     }
   }
 
-  private async changeVisabilityTimeoutBatch(messages: SQSMessage[], timeout: number): Promise<PromiseResult<any, AWSError>> {
-    const params = {
+  private async changeVisibilityTimeoutBatch(messages: SQSMessage[], timeout: number): Promise<ChangeMessageVisibilityBatchCommandOutput> {
+    const params: ChangeMessageVisibilityBatchCommandInput = {
       QueueUrl: this.queueUrl,
       Entries: messages.map((message) => ({
         Id: message.MessageId,
@@ -408,9 +420,7 @@ export class Consumer extends EventEmitter {
       }))
     };
     try {
-      return await this.sqs
-        .changeMessageVisibilityBatch(params)
-        .promise();
+      return await this.sqs.send(new ChangeMessageVisibilityBatchCommand(params));
     } catch (err) {
       this.emit('error', toSQSError(err, `Error changing visibility timeout: ${err.message}`), messages);
     }
