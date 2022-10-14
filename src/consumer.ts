@@ -46,7 +46,6 @@ function createTimeout(duration: number): TimeoutResponse[] {
   let timeout;
   const pending = new Promise((resolve, reject) => {
     timeout = setTimeout((): void => {
-      debug('timed out!');
       reject(new TimeoutError());
     }, duration);
   });
@@ -302,13 +301,11 @@ export class Consumer extends EventEmitter {
         VisibilityTimeout: timeout
       }));
     } catch (err) {
-      debug('error!!', message, timeout);
       this.emit('error', toSQSError(err, `Error changing visibility timeout: ${err.message}`), message);
     }
   }
 
   private emitError(err: Error, message: SQSMessage): void {
-    debug('emitting error!!');
     if (err.name === SQSError.name) {
       this.emit('error', err, message);
     } else if (err instanceof TimeoutError) {
