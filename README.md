@@ -1,11 +1,20 @@
 # sqs-consumer
 
-[![NPM downloads](https://img.shields.io/npm/dm/sqs-consumer.svg?style=flat)](https://npmjs.org/package/sqs-consumer)
-[![Build Status](https://travis-ci.org/bbc/sqs-consumer.svg)](https://travis-ci.org/bbc/sqs-consumer) 
-[![Code Climate](https://codeclimate.com/github/BBC/sqs-consumer/badges/gpa.svg)](https://codeclimate.com/github/BBC/sqs-consumer) 
-[![Test Coverage](https://codeclimate.com/github/BBC/sqs-consumer/badges/coverage.svg)](https://codeclimate.com/github/BBC/sqs-consumer)
-
 Build SQS-based applications without the boilerplate. Just define an async function that handles the SQS message processing.
+
+## Context
+*from @SishaarRao* Hello world! This is my Lob Halloween Hackathon Project. `sqs-consumer` is an awesome library used by many Node developers and Lob engineering. It provides a lot of boilerplate functionality in a simple yet powerful manner.
+
+That being said, nowadays we @ Lob opt away from this package, primarily because it has not yet been ported to [the new AWS SDK V3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/index.html).
+
+I forked the `sqs-consumer` in order to port the repo, and make some improvements we've wanted to see. 
+
+### Next challenges
+1. Investigate why `sqs-consumer` doesn't play nice with FIFO queues
+### Changelog (10-13-2022)
+- Upgrade all dependencies to latest versions
+- Upgrade underlying AWS SDK to V3
+- Convert test suite to Jest
 
 ## Installation
 
