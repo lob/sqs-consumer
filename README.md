@@ -7,7 +7,7 @@ Build SQS-based applications without the boilerplate. Just define an async funct
 
 That being said, nowadays we @ Lob opt away from this package, primarily because it has not yet been ported to [the new AWS SDK V3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/index.html).
 
-I forked the `sqs-consumer` in order to port the repo, and make some improvements we've wanted to see. 
+I forked the `sqs-consumer` in order to port the repo, and make some improvements we've wanted to see.
 
 ### Next challenges
 1. Investigate why `sqs-consumer` doesn't play nice with FIFO queues
@@ -19,7 +19,7 @@ I forked the `sqs-consumer` in order to port the repo, and make some improvement
 ## Installation
 
 ```bash
-npm install sqs-consumer --save
+npm install @lob/sqs-consumer --save
 ```
 
 ## Usage
@@ -157,7 +157,7 @@ Start polling the queue for messages.
 
 Stop polling the queue for messages.
 
-### `consumer.isRunning`  
+### `consumer.isRunning`
 
 Returns the current polling state of the consumer: `true` if it is actively polling, `false` if it is not.
 
@@ -180,5 +180,5 @@ Each consumer is an [`EventEmitter`](http://nodejs.org/api/events.html) and emit
 
 Consumer will receive and delete messages from the SQS queue. Ensure `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:DeleteMessageBatch`, `sqs:ChangeMessageVisibility` and `sqs:ChangeMessageVisibilityBatch` access is granted on the queue being consumed.
 
-### Contributing 
-See contributing [guidelines](https://github.com/bbc/sqs-consumer/blob/master/.github/CONTRIBUTING.md).
+### Contributing
+See contributing [guidelines](https://github.com/lob/sqs-consumer/blob/main/.github/CONTRIBUTING.md).
