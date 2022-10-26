@@ -1,21 +1,24 @@
 {
   "name": "sqs-consumer",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "npm run clean && tsc",
-    "watch": "tsc --watch",
     "clean": "rm -fr dist/*",
-    "prepublish": "npm run build",
-    "pretest": "npm run build",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "lint": "eslint . --ext .ts --fix",
-    "lint:fix": "eslint . --fix",
     "coverage": "nyc mocha && nyc report --reporter=html && nyc report --reporter=json-summary",
     "lcov": "nyc mocha && nyc report --reporter=lcov",
-    "posttest": "npm run lint"
+    "lint:fix": "eslint . --fix",
+    "lint": "eslint . --ext .ts --fix",
+    "posttest": "npm run lint",
+    "prepublish": "npm run build",
+    "pretest": "npm run build",
+    "release:major": "changelog -M && git add CHANGELOG.md && git commit -m 'updated CHANGELOG.md' && npm version major && git push origin && git push origin --tags",
+    "release:minor": "changelog -m && git add CHANGELOG.md && git commit -m 'updated CHANGELOG.md' && npm version minor && git push origin && git push origin --tags",
+    "release:patch": "changelog -p && git add CHANGELOG.md && git commit -m 'updated CHANGELOG.md' && npm version patch && git push origin && git push origin --tags",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "watch": "tsc --watch"
   },
   "repository": {
     "type": "git",
