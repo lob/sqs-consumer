@@ -1,5 +1,5 @@
 {
-  "name": "sqs-consumer",
+  "name": "@lob/sqs-consumer",
   "version": "0.1.0",
   "description": "Build SQS-based Node applications without the boilerplate",
   "main": "dist/index.js",
