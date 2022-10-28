@@ -1,3 +1,9 @@
+## 1.0.0 (2022-10-28)
+
+##### Other Changes
+
+*  update contribution guide to be more in line with lob-node sdk ([#2](https://github.com/lob/sqs-consumer/pull/2)) ([92b3ba21](https://github.com/lob/sqs-consumer/commit/92b3ba219a402c2a68f4533cd92468a521bd4acf))
+
 #### 0.1.1 (2022-10-26)
 
 ### 0.1.0 (2022-10-26)
